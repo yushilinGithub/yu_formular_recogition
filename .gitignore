@@ -3,3 +3,7 @@ pretrain/*
 log*/*
 *.model
 *__pycache__*
+fairseq*
+*build*
+*dist*
+*egg-info*
