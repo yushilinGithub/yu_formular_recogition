@@ -200,30 +200,6 @@ class AdaptedVisionTransformer(VisionTransformer):
         x, input_embedding = self.forward_features(x)
         return x, input_embedding
 
-def register_rpe_model(fn):
-    '''Register a model with iRPE
-    It is a wrapper of `register_model` with loading the pretrained checkpoint.
-    '''
-    def fn_wrapper(pretrained=False, **kwargs):
-        model = fn()
-        if pretrained:
-            model_name = fn.__name__
-            assert model_name in _provided_checkpoints, \
-                f'Sorry that the checkpoint `{model_name}` is not provided yet.'
-            url = _checkpoint_url_prefix + model_name + '.pth'
-            checkpoint = torch.hub.load_state_dict_from_url(
-                url=url,
-                map_location='cpu', check_hash=False,
-            )
-            model.load_state_dict(checkpoint['model'])
-
-        return model
-
-    # rename the name of fn_wrapper
-    fn_wrapper.__name__ = fn.__name__
-    return register_model(fn_wrapper)
-
-
 @register_model
 def deit_tiny_patch16_224(pretrained=False, **kwargs):
     model = VisionTransformer(
