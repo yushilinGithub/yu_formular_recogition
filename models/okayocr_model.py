@@ -5,7 +5,7 @@ from fairseq.models import FairseqEncoder, register_model, FairseqEncoderDecoder
 from fairseq.models.transformer import TransformerDecoder, Embedding, TransformerModel
 from fairseq.models.fairseq_encoder import EncoderOut
 from fairseq import utils
-from models.swin.swin_transformer import SwinTransformer
+from .swin.swin_transformer import SwinTransformer
 # from timm.models.vision_transformer import HybridEmbed, PatchEmbed, Block
 from timm.models.layers import trunc_normal_
 from timm.models import create_model

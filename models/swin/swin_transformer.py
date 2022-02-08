@@ -585,7 +585,7 @@ def swin_tiny_patch4_window7(pretrained,args):
     num_heads = getattr(args,"num_heads",[3, 6, 12])
     embed_dim = getattr(args,"swin_embed_dim",96)
     drop_path_rate = getattr(args,"drop_path_rate",0.1)
-    if isinstance(args.img_size,str):
+    if isinstance(img_size,str):
         img_size = tuple([int(s) for s in args.img_size.split("-")])
     model = SwinTransformer(img_size=img_size,embed_dim=embed_dim, depths=depths, num_heads=num_heads,
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,

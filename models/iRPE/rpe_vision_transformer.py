@@ -39,7 +39,7 @@ except ImportError:
     # for higher version of timm
     from timm.models.vision_transformer_hybrid import HybridEmbed
 
-from models.iRPE.irpe import build_rpe
+from .irpe import build_rpe
 
 
 class RPEAttention(nn.Module):

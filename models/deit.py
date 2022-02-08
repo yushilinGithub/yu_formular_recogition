@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from functools import partial
 
 #from timm.models.vision_transformer import VisionTransformer, _cfg
-from models.iRPE.rpe_vision_transformer import VisionTransformer, _cfg
-from models.iRPE.irpe import get_rpe_config
+from .iRPE.rpe_vision_transformer import VisionTransformer, _cfg
+from .iRPE.irpe import get_rpe_config
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 

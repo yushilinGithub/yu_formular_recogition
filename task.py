@@ -6,15 +6,14 @@ from fairseq.data import Dictionary, encoders
 from fairseq.tasks import LegacyFairseqTask, register_task
 from fairseq.tasks.fairseq_task import FairseqTask
 
-from data.data_load import FormularRecognitionDataset
+from .data.data_load import FormularRecognitionDataset
 
-try:
-    from .data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
-    from .data.data_aug import build_data_aug,build_formular_aug
-except:
-    from data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
-    from data.data_aug import build_data_aug,build_formular_aug
-
+#try:
+from .data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
+from .data.data_aug import build_data_aug,build_formular_aug
+#except:
+#    from data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
+#    from data.data_aug import build_data_aug,build_formular_aug
 import logging
 
 logger = logging.getLogger(__name__)
