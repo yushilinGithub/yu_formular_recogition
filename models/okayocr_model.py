@@ -11,7 +11,7 @@ from timm.models.layers import trunc_normal_
 from timm.models import create_model
 import torch
 from torch.hub import load_state_dict_from_url
-
+import os
 from functools import partial
 import logging
 
@@ -43,13 +43,8 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
             '--window-size', type=int, metavar='N', default=3,
             help='the input image channels of the ViT'
         )
-
         parser.add_argument(
-            '--drop-path-rate', type=float, metavar='N', default=3,
-            help='the input image channels of the ViT'
-        )
-        parser.add_argument(
-            "--pretrained-path", type=str,default="pretrain/swin_tiny_patch4_window7_224.pth"
+            "--pretrained-path", type=str,default="/xdfapp/yushilin/formular/result/ft_formular_swin/pretrain.pt"
         )
 
 
