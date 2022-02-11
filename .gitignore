@@ -8,3 +8,4 @@ fairseq*
 *dist*
 *egg-info*
 run_formular.sh
+eval.sh
