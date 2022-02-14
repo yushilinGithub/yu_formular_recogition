@@ -1,3 +1,4 @@
+from email.policy import default
 import os
 from typing import Dict
 from fairseq import search
@@ -30,6 +31,8 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
         #                     help='the max bpe num of the output')
         parser.add_argument('--preprocess', default='ResizeNormalize', type=str,
                             help='the image preprocess methods (ResizeNormalize|DeiT)')     
+        parser.add_argument('--encoder-pretrained-url',default=None,type=str,
+                            help = 'seted to load the swin-tiny parameters to the decoder.')
         parser.add_argument('--decoder-pretrained', default=None, type=str,
                             help='seted to load the RoBERTa parameters to the decoder.')    
         parser.add_argument('--decoder-pretrained-url', default=None, type=str,

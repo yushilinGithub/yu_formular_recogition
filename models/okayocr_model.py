@@ -5,7 +5,9 @@ from fairseq.models import FairseqEncoder, register_model, FairseqEncoderDecoder
 from fairseq.models.transformer import TransformerDecoder, Embedding, TransformerModel
 from fairseq.models.fairseq_encoder import EncoderOut
 from fairseq import utils
+from fairseq.models.transformer import base_architecture as base_transformer
 from .swin.swin_transformer import SwinTransformer
+from .unilm_models import UniLMDecoder
 # from timm.models.vision_transformer import HybridEmbed, PatchEmbed, Block
 from timm.models.layers import trunc_normal_
 from timm.models import create_model
@@ -14,7 +16,7 @@ from torch.hub import load_state_dict_from_url
 import os
 from functools import partial
 import logging
-
+from collections import OrderedDict
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_TARGET_POSITIONS = 1024
@@ -44,34 +46,122 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
             help='the input image channels of the ViT'
         )
         parser.add_argument(
-            "--pretrained-path", type=str,default="/xdfapp/yushilin/formular/result/ft_formular_swin/pretrain.pt"
+            '--reset-dictionary', action='store_true',
+            help='if reset dictionary and related parameters'
         )
-
-
+        parser.add_argument(
+            '--adapt-dictionary', action='store_true',
+            help='if adapt dictionary and related parameters'
+        )
     @classmethod
     def build_model(cls, args, task):
         encoder = SwinEncoder(
             args = args,
             dictionary = task.source_dictionary
         )
-        if args.encoder_pretrained_url:
-            logger.info('load pretrianed encoder parameter from: {}'.format(args.encoder_pretrained_url))
-            encoder_state_dict = load_state_dict_from_url(args.encoder_pretrained_url)
-            encoder.load_state_dict(encoder_state_dict, strict=False)
+
 
         if getattr(args, "max_target_positions", None) is None:
             args.max_target_positions = DEFAULT_MAX_TARGET_POSITIONS
 
-        decoder_embed_tokens = cls.build_embedding(
-            args, task.target_dictionary, args.decoder_embed_dim, args.decoder_embed_path
-        )
+        if getattr(args, "decoder_pretrained", None) == 'minilm':
+            logger.info('Decoder is pretrained using the minilm.')
+            
+            prefix_of_parameter = 'bert'
 
-        decoder = TransformerDecoder(
-            args = args,
-            dictionary=task.target_dictionary,
-            embed_tokens=decoder_embed_tokens,
-            no_encoder_attn=False
-        )
+            decoder_embed_tokens = cls.build_embedding(
+                args, task.target_dictionary, args.decoder_embed_dim, args.decoder_embed_path
+            )
+
+            decoder = UniLMDecoder(
+                args,
+                task.target_dictionary,
+                decoder_embed_tokens,
+                no_encoder_attn=False,
+            )            
+
+            if hasattr(args, 'decoder_pretrained_url') and args.decoder_pretrained_url != None and args.decoder_pretrained_url != '':                
+                unilm_url = args.decoder_pretrained_url
+                logger.info('The unilm model url: {}.'.format(unilm_url[:unilm_url.find('?')]))
+                if unilm_url.startswith("http"):
+                    unilm_state_dict = torch.hub.load_state_dict_from_url(unilm_url)            
+                else:
+                    unilm_state_dict = torch.load(unilm_url)
+                unilm_layers = OrderedDict([(k, unilm_state_dict[k]) for k in unilm_state_dict.keys() if k.startswith(prefix_of_parameter + '.encoder.layer.')])
+                unilm_layers_num = []
+                for k in unilm_layers.keys():
+                    t = k.replace(prefix_of_parameter + '.encoder.layer.', '')
+                    t = t[:t.find('.')]
+                    unilm_layers_num.append(int(t))
+                unilm_layers_num = max(unilm_layers_num) + 1
+
+                offset = unilm_layers_num - len(decoder.layers)
+                assert offset == 0
+
+                decoder_dict = decoder.state_dict()
+                # embedding
+                new_pos_weight = torch.zeros_like(decoder_dict['embed_positions.weight'])
+                # position padding will right offset padding idx + 1
+                new_pos_weight[task.target_dictionary.pad() + 1:, :] = unilm_state_dict[prefix_of_parameter + '.embeddings.position_embeddings.weight']
+                new_decoder_dict = {
+                    'embed_tokens.weight': unilm_state_dict[prefix_of_parameter + '.embeddings.word_embeddings.weight'],
+                    'embed_positions.weight': new_pos_weight,
+                    'layernorm_embedding.weight': unilm_state_dict[prefix_of_parameter + '.embeddings.LayerNorm.weight'],
+                    'layernorm_embedding.bias': unilm_state_dict[prefix_of_parameter + '.embeddings.LayerNorm.bias']
+                }            
+
+                # layers
+                key_map = {
+                    'self_attn.k_proj': 'attention.self.key',
+                    'self_attn.v_proj': 'attention.self.value',                
+                    'self_attn.q_proj': 'attention.self.query',
+                    'self_attn.out_proj': 'attention.output.dense',
+                    'self_attn_layer_norm': 'attention.output.LayerNorm',
+                    'fc1': 'intermediate.dense',
+                    'fc2': 'output.dense',
+                    'final_layer_norm': 'output.LayerNorm'
+                }
+                for layer_id in range(unilm_layers_num):
+                    unilm_prefix = prefix_of_parameter + '.encoder.layer.{}.'.format(layer_id)
+                    decoder_prefix = 'layers.{}.'.format(layer_id)
+
+                    for key in key_map:
+                        for suffix in ['.weight', '.bias']:
+                            decoder_key = decoder_prefix + key + suffix
+                            unilm_key = unilm_prefix + key_map[key] + suffix
+                            if decoder_key in decoder_dict and unilm_key in unilm_state_dict:
+                                new_decoder_dict[decoder_key] = unilm_state_dict[unilm_key]
+                            
+                if hasattr(args, "reset_dictionary") and args.reset_dictionary:
+                    logger.info('Reset token embedding weights during decoder initialization.')
+                    del new_decoder_dict['embed_tokens.weight']
+                elif hasattr(args, "adapt_dictionary") and args.adapt_dictionary:
+                    unilm_embed_tokens_weight = new_decoder_dict['embed_tokens.weight']
+                    logger.info('Adapt token embedding weights during decoder initialization from {} to {}'.format(unilm_embed_tokens_weight.shape[0], decoder_embed_tokens.weight.shape[0]))                
+                    new_decoder_dict['embed_tokens.weight'] = torch.zeros_like(decoder_dict['embed_tokens.weight'])
+                    new_decoder_dict['embed_tokens.weight'][:min(unilm_embed_tokens_weight.shape[0], decoder_dict['embed_tokens.weight'].shape[0]), :] = unilm_embed_tokens_weight[:min(unilm_embed_tokens_weight.shape[0], decoder_dict['embed_tokens.weight'].shape[0]), :]
+
+                missing_keys, unexpected_keys = decoder.load_state_dict(
+                    new_decoder_dict, strict=False
+                )
+            else:
+                logger.warning('You must specify the unilm model url or the decoder is randomly initialized.')
+
+            # freeze k_proj bias
+            for layer in decoder.layers:
+                layer.self_attn.k_proj.bias.requires_grad = False
+        else:
+            decoder_embed_tokens = cls.build_embedding(
+                args, task.target_dictionary, args.decoder_embed_dim, args.decoder_embed_path
+            )
+
+            decoder = TransformerDecoder(
+                args = args,
+                dictionary=task.target_dictionary,
+                embed_tokens=decoder_embed_tokens,
+                no_encoder_attn=False
+            )
+
         model = cls(encoder, decoder)
         return model
 
@@ -97,55 +187,17 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
 @register_model_architecture('OKayOCR_swin', 'swin_tiny_patch4_window7')
 def swin_tiny_patch4_window7(args):
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 384)
-
-    args.encoder_pretrained_url = getattr(args,"encoder_pretrained_url",None)
-    args.decoder_embed_path = getattr(args, "decoder_embed_path", None)
-    args.decoder_embed_dim = getattr(args, "decoder_embed_dim", args.encoder_embed_dim)
-    args.decoder_ffn_embed_dim = getattr(
-        args, "decoder_ffn_embed_dim", args.decoder_embed_dim*4
-    )
+    args.decoder_learned_pos = True
+    args.layernorm_embedding = True
     args.decoder_layers = getattr(args, "decoder_layers", 6)
-    args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 8)
-    args.decoder_normalize_before = getattr(args, "decoder_normalize_before", False)
-    args.decoder_learned_pos = getattr(args, "decoder_learned_pos", True)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.0)
-    args.activation_dropout = getattr(args, "activation_dropout", 0.0)
-    args.activation_fn = getattr(args, "activation_fn", "relu")
-    args.dropout = getattr(args, "dropout", 0.1)
-    args.adaptive_softmax_cutoff = getattr(args, "adaptive_softmax_cutoff", None)
-    args.adaptive_softmax_dropout = getattr(args, "adaptive_softmax_dropout", 0)
-    args.share_decoder_input_output_embed = getattr(
-        args, "share_decoder_input_output_embed", False
-    )
-    args.share_all_embeddings = getattr(args, "share_all_embeddings", False)
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.adaptive_input = getattr(args, "adaptive_input", False)
-    args.no_cross_attention = getattr(args, "no_cross_attention", False)
-    args.cross_self_attention = getattr(args, "cross_self_attention", False)
-
-    args.decoder_output_dim = getattr(
-        args, "decoder_output_dim", args.decoder_embed_dim
-    )
-    args.decoder_input_dim = getattr(args, "decoder_input_dim", args.decoder_embed_dim)
-
-    args.no_scale_embedding = getattr(args, "no_scale_embedding", False)
-    args.layernorm_embedding = getattr(args, "layernorm_embedding", False)
-    args.tie_adaptive_weights = getattr(args, "tie_adaptive_weights", False)
-    args.checkpoint_activations = getattr(args, "checkpoint_activations", False)
-    args.offload_activations = getattr(args, "offload_activations", False)
-    if args.offload_activations:
-        args.checkpoint_activations = True
-    args.encoder_layers_to_keep = getattr(args, "encoder_layers_to_keep", None)
-    args.decoder_layers_to_keep = getattr(args, "decoder_layers_to_keep", None)
-    args.encoder_layerdrop = getattr(args, "encoder_layerdrop", 0)
-    args.decoder_layerdrop = getattr(args, "decoder_layerdrop", 0)
-    args.quant_noise_pq = getattr(args, "quant_noise_pq", 0)
-    args.quant_noise_pq_block_size = getattr(args, "quant_noise_pq_block_size", 8)
-    args.quant_noise_scalar = getattr(args, "quant_noise_scalar", 0)
-
+    args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 384)
+    args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1536)
+    args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 12)
     args.swin_arch = getattr(args, "swin_arch", "swin_tiny_patch4_window7")
+    args.max_target_positions = 512
+    base_transformer(args)
+
+    
 
 @register_model_architecture('OKayOCR_swin', 'swin_small_patch4_window7')
 def swin_small_patch4_window7(args):

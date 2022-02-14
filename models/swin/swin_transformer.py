@@ -591,8 +591,8 @@ def swin_tiny_patch4_window7(pretrained,args):
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=drop_path_rate)
 
     
-    if pretrained and os.path.exists(args.pretrained_path):
-        checkpoint = torch.load(args.pretrained_path,
+    if pretrained and os.path.exists(args.encoder_pretrained_url):
+        checkpoint = torch.load(args.encoder_pretrained_url,
             map_location="cpu")
         new_checkpoint = {}
         model_keys = model.state_dict().keys()
@@ -614,8 +614,8 @@ def swin_small_patch4_window7(pretrained,args):
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=drop_path_rate)
 
-    if pretrained and os.path.exists(args.pretrained_path):
-        checkpoint = torch.load(args.pretrained_path,
+    if pretrained and os.path.exists(args.encoder_pretrained_url):
+        checkpoint = torch.load(args.encoder_pretrained_url,
             map_location="cpu")
         new_checkpoint = {}
         model_keys = model.state_dict().keys()
