@@ -220,9 +220,10 @@ class SyntheticTextRecognitionDataset(FairseqDataset):
 
 class ResizePad(object):
 
-    def __init__(self, img_size, keep_ratio_with_pad=True):
+    def __init__(self, img_size, split, keep_ratio_with_pad=True):
         self.img_size=img_size
         assert keep_ratio_with_pad == True
+        self.split = split
         self.keep_ratio_with_pad = keep_ratio_with_pad
     def cut_white_space(self,image):
         gray =cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -236,14 +237,23 @@ class ResizePad(object):
         image = self.cut_white_space(image)
         old_size = image.shape[:2]  
 
-        ratio = min(float(self.img_size[0])/old_size[0],float(self.img_size[1])/old_size[1])
-        height = int(old_size[0]*ratio)
-        width = int(old_size[1]*ratio)
+        ratio = min(float(self.img_size[0]-10)/old_size[0],float(self.img_size[1]-10)/old_size[1]) 
 
-        im = cv2.resize(image,(width,height),cv2.INTER_AREA)
-
-        new_im = np.zeros((self.img_size[0],self.img_size[1],3),dtype=np.uint8)+255
-        new_im[0:height,0:width]=im
+        if self.split !="train":
+            height = int(old_size[0]*ratio)
+            width = int(old_size[1]*ratio)
+            im = cv2.resize(image,(width,height),cv2.INTER_AREA)
+            new_im = np.zeros((self.img_size[0],self.img_size[1],3),dtype=np.uint8)+255
+            new_im[5:5+height,5:5+width]=im
+        else:
+            ratio = random.uniform(0.65,1)*ratio
+            height = int(old_size[0]*ratio)
+            width = int(old_size[1]*ratio)
+            im = cv2.resize(image,(width,height),cv2.INTER_AREA)
+            new_im = np.zeros((self.img_size[0],self.img_size[1],3),dtype=np.uint8)+255
+            y_start = random.randint(0,self.img_size[0]-height)
+            x_start = random.randint(1,self.img_size[1]-width)
+            new_im[y_start:y_start+height,x_start:x_start+width]=im
 
         return new_im
 
@@ -277,7 +287,7 @@ class FormularRecognitionDataset(FairseqDataset):
         self.tfm = tfm
         self.target_dict = target_dict
         self.input_size = input_size
-        self.resizePad = ResizePad(img_size = input_size,keep_ratio_with_pad=True)
+        self.resizePad = ResizePad(img_size = input_size,split=split,keep_ratio_with_pad=True)
         self.data = FMR(gt_path,mode=split)
     def __len__(self):
         return len(self.data)
@@ -313,7 +323,7 @@ if __name__=="__main__":
     import uuid
     target_dict = Dictionary.load("dictionary/latex_vocab_dict.txt")
     tfm = build_formular_aug(mode="train")
-    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/harvard/data",tfm=tfm,target_dict=target_dict,input_size=(192,768),split="valid")
+    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/harvard/data",tfm=tfm,target_dict=target_dict,input_size=(192,768),split="train")
     for f in formular:
         #print(f["label_ids"])
         cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])
