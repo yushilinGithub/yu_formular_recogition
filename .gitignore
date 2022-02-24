@@ -9,3 +9,4 @@ fairseq*
 *egg-info*
 run_formular.sh
 eval.sh
+*.csv
