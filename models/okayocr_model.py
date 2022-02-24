@@ -42,10 +42,6 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
             help='the layer num of the ViT'
         )
         parser.add_argument(
-            '--window-size', type=int, metavar='N', default=3,
-            help='the input image channels of the ViT'
-        )
-        parser.add_argument(
             '--reset-dictionary', action='store_true',
             help='if reset dictionary and related parameters'
         )
@@ -79,7 +75,7 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
                 decoder_embed_tokens,
                 no_encoder_attn=False,
             )            
-
+            # load pretrained model
             if hasattr(args, 'decoder_pretrained_url') and args.decoder_pretrained_url != None and args.decoder_pretrained_url != '':                
                 unilm_url = args.decoder_pretrained_url
                 logger.info('The unilm model url: {}.'.format(unilm_url[:unilm_url.find('?')]))
@@ -144,6 +140,7 @@ class OKayOCR_swin(FairseqEncoderDecoderModel):
                 missing_keys, unexpected_keys = decoder.load_state_dict(
                     new_decoder_dict, strict=False
                 )
+
             else:
                 logger.warning('You must specify the unilm model url or the decoder is randomly initialized.')
 
@@ -201,51 +198,17 @@ def swin_tiny_patch4_window7(args):
 
 @register_model_architecture('OKayOCR_swin', 'swin_small_patch4_window7')
 def swin_small_patch4_window7(args):
-  
-    args.encoder_pretrained_url = getattr(args,"encoder_pretrained_url",None)
-    args.swin_arch = getattr(args, "swin_arch", "swin_small_patch4_window7")
-
+    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
+    args.decoder_learned_pos = True
+    args.layernorm_embedding = True
     args.decoder_layers = getattr(args, "decoder_layers", 6)
-    args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 8)
-    args.decoder_normalize_before = getattr(args, "decoder_normalize_before", False)
-    args.decoder_learned_pos = getattr(args, "decoder_learned_pos", True)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.0)
-    args.activation_dropout = getattr(args, "activation_dropout", 0.0)
-    args.activation_fn = getattr(args, "activation_fn", "relu")
-    args.dropout = getattr(args, "dropout", 0.1)
-    args.adaptive_softmax_cutoff = getattr(args, "adaptive_softmax_cutoff", None)
-    args.adaptive_softmax_dropout = getattr(args, "adaptive_softmax_dropout", 0)
-    args.share_decoder_input_output_embed = getattr(
-        args, "share_decoder_input_output_embed", False
-    )
-    args.share_all_embeddings = getattr(args, "share_all_embeddings", False)
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.adaptive_input = getattr(args, "adaptive_input", False)
-    args.no_cross_attention = getattr(args, "no_cross_attention", False)
-    args.cross_self_attention = getattr(args, "cross_self_attention", False)
+    args.decoder_embed_dim = getattr(args, "decoder_embed_dim", 512)
+    args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 2048)
+    args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 12)
+    args.swin_arch = getattr(args, "swin_arch", "swin_tiny_patch4_window7")
+    args.max_target_positions = 512
+    base_transformer(args)
 
-    args.decoder_output_dim = getattr(
-        args, "decoder_output_dim", args.decoder_embed_dim
-    )
-    args.decoder_input_dim = getattr(args, "decoder_input_dim", args.decoder_embed_dim)
-
-    args.no_scale_embedding = getattr(args, "no_scale_embedding", False)
-    args.layernorm_embedding = getattr(args, "layernorm_embedding", False)
-    args.tie_adaptive_weights = getattr(args, "tie_adaptive_weights", False)
-    args.checkpoint_activations = getattr(args, "checkpoint_activations", False)
-    args.offload_activations = getattr(args, "offload_activations", False)
-    if args.offload_activations:
-        args.checkpoint_activations = True
-    args.encoder_layers_to_keep = getattr(args, "encoder_layers_to_keep", None)
-    args.decoder_layers_to_keep = getattr(args, "decoder_layers_to_keep", None)
-    args.encoder_layerdrop = getattr(args, "encoder_layerdrop", 0)
-    args.decoder_layerdrop = getattr(args, "decoder_layerdrop", 0)
-    args.quant_noise_pq = getattr(args, "quant_noise_pq", 0)
-    args.quant_noise_pq_block_size = getattr(args, "quant_noise_pq_block_size", 8)
-    args.quant_noise_scalar = getattr(args, "quant_noise_scalar", 0)
-    args.pretrained_path = getattr(args,"pretrained_path","pretrain/swin_small_patch4_window7_224.pth")
 class SwinEncoder(FairseqEncoder):
     def __init__(self, args, dictionary):
         super().__init__(dictionary)

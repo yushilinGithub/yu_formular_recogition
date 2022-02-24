@@ -1,5 +1,5 @@
 #export MODEL_NAME=ft_formular_harDict_192_384_irpe_newsize
-export MODEL_NAME=ft_formular_swin_minilm
+export MODEL_NAME=ft_formular_swin_aug
 export SAVE_PATH=/home/public/yushilin/formular/harvard/${MODEL_NAME}
 export LOG_DIR=log_${MODEL_NAME}
 export DATA=/home/public/yushilin/formular/harvard/data/
@@ -21,13 +21,14 @@ export valid_BSZ=32
 #deit_formular_irpe  #with irpe registered by Yushilin
 #192-768
 #224-784
+#--decoder-pretrained minilm  
+#--decoder-pretrained-url /home/public/yushilin/formular/pretrained/MiniLM-L6-H384-distilled-from-BERT-Large/pytorch_model.bin \
 CUDA_VISIBLE_DEVICES=0 python $(which fairseq-train) --data-type formular --input-size 224-784 --user-dir ./ --task text_recognition  \
             --arch swin_tiny_patch4_window7  --seed 1111 --optimizer adam --lr 5e-05 --lr-scheduler inverse_sqrt \
             --warmup-init-lr 1e-8 --warmup-updates 500 --weight-decay 0.0001 --log-format tqdm  --log-interval 10 \
             --batch-size ${BSZ} --batch-size-valid ${valid_BSZ} --save-dir ${SAVE_PATH} --tensorboard-logdir ${LOG_DIR} \
             --max-epoch 300 --patience 20 --ddp-backend legacy_ddp --num-workers 4 --preprocess FM --update-freq 1 \
             --fp16 --log-file train.log \
-            --decoder-pretrained minilm  --adapt-dictionary \
-            --decoder-pretrained-url /home/public/yushilin/formular/pretrained/MiniLM-L6-H384-distilled-from-BERT-Large/pytorch_model.bin \
+            --adapt-dictionary \
             --encoder-pretrained-url /home/public/yushilin/formular/pretrained/swin_tiny_patch4_window7_224.pth \
             --data ${DATA} 

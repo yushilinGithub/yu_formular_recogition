@@ -1,8 +1,11 @@
+from platform import libc_ver
+from builtins import isinstance
 import glob
 import logging
 import os
 import random
 import cv2
+from sklearn.preprocessing import binarize
 
 import torch
 from fairseq.data import FairseqDataset, data_utils
@@ -221,9 +224,16 @@ class ResizePad(object):
         self.img_size=img_size
         assert keep_ratio_with_pad == True
         self.keep_ratio_with_pad = keep_ratio_with_pad
-
+    def cut_white_space(self,image):
+        gray =cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        _,thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY_INV)
+        coords = cv2.findNonZero(thresh)  # Find all non-zero points (text)
+        if isinstance(coords,np.ndarray) or isinstance(coords,list):
+            a, b, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
+            image = image[b:b+h, a:a+w]
+        return image
     def __call__(self,image):        
-
+        image = self.cut_white_space(image)
         old_size = image.shape[:2]  
 
         ratio = min(float(self.img_size[0])/old_size[0],float(self.img_size[1])/old_size[1])
@@ -305,5 +315,5 @@ if __name__=="__main__":
     tfm = build_formular_aug(mode="train")
     formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/harvard/data",tfm=tfm,target_dict=target_dict,input_size=(192,768),split="valid")
     for f in formular:
-        print(f["label_ids"])
+        #print(f["label_ids"])
         cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])
