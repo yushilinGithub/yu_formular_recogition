@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import cv2
+from cv2 import erode
 from sklearn.preprocessing import binarize
 
 import torch
@@ -220,11 +221,9 @@ class SyntheticTextRecognitionDataset(FairseqDataset):
 
 class ResizePad(object):
 
-    def __init__(self, img_size, split, keep_ratio_with_pad=True):
+    def __init__(self, img_size, split):
         self.img_size=img_size
-        assert keep_ratio_with_pad == True
         self.split = split
-        self.keep_ratio_with_pad = keep_ratio_with_pad
     def cut_white_space(self,image):
         gray =cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _,thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY_INV)
@@ -233,8 +232,9 @@ class ResizePad(object):
             a, b, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
             image = image[b:b+h, a:a+w]
         return image
-    def __call__(self,image):        
-        image = self.cut_white_space(image)
+    def __call__(self,image,cut_white_space=True):  
+        if cut_white_space:
+            image = self.cut_white_space(image)
         old_size = image.shape[:2]  
 
         ratio = min(float(self.img_size[0]-10)/old_size[0],float(self.img_size[1]-10)/old_size[1]) 
@@ -258,7 +258,8 @@ class ResizePad(object):
         return new_im
 
 def FMR(gt_path,mode,bpe_parser=None):
-    with open(os.path.join(gt_path,"im2latex_formulas.norm.lst"),"r") as f:
+    normFile = "im2latex_formulas.norm.lst"
+    with open(os.path.join(gt_path,normFile),"r") as f:
         latex = list(f)
     split_file={"train":"im2latex_train_filter.lst","test":"im2latex_test_filter.lst","valid":"im2latex_validation_filter.lst"}
     data = []
@@ -287,16 +288,15 @@ class FormularRecognitionDataset(FairseqDataset):
         self.tfm = tfm
         self.target_dict = target_dict
         self.input_size = input_size
-        self.resizePad = ResizePad(img_size = input_size,split=split,keep_ratio_with_pad=True)
+        self.resizePad = ResizePad(img_size = input_size,split=split)
         self.data = FMR(gt_path,mode=split)
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         img_dict = self.data[index]
-
         image = cv2.imread(img_dict['img_path'])
-        image = self.resizePad(image)
+        image = self.resizePad(image,cut_white_space=False)
         encoded_str = img_dict['encoded_str']
         input_ids = self.target_dict.encode_line(encoded_str, add_if_not_exist=False)
 
@@ -321,9 +321,9 @@ if __name__=="__main__":
     from fairseq.data import Dictionary
     from data.data_aug import build_formular_aug
     import uuid
-    target_dict = Dictionary.load("dictionary/latex_vocab_dict.txt")
+    target_dict = Dictionary.load("dictionary/latex_vocab_formulae.txt")
     tfm = build_formular_aug(mode="train")
-    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/harvard/data",tfm=tfm,target_dict=target_dict,input_size=(192,768),split="train")
+    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/formulae",tfm=tfm,target_dict=target_dict,input_size=(224,784),split="train")
     for f in formular:
-        #print(f["label_ids"])
-        cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])
+        pass
+        #cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])

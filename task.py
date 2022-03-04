@@ -51,7 +51,7 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
         #                     help='the output dir for the crop images')   
         parser.add_argument('--data-type', type=str, default='formular',
                             help='the dataset type used for the task (SROIE or Receipt53K)')        
-        parser.add_argument('--dict',type=str,default="dictionary/latex_vocab_dict.txt")
+        parser.add_argument('--dict',type=str,default="dictionary/latex_vocab_formulae.txt")
         # Augmentation parameters
         parser.add_argument('--color-jitter', type=float, default=0.4, metavar='PCT',
                             help='Color jitter factor (default: 0.4)')

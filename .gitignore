@@ -10,3 +10,4 @@ fairseq*
 run_formular.sh
 eval.sh
 *.csv
+*.pt

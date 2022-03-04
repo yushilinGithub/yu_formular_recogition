@@ -579,7 +579,7 @@ class SwinTransformer(nn.Module):
 @register_model
 def swin_tiny_patch4_window7(pretrained,args):
 
-    img_size = getattr(args,"img_size",(224,784))
+    img_size = getattr(args,"img_size",(224,672))
     depths = getattr(args,"depths",[2, 2, 6])
     num_heads = getattr(args,"num_heads",[3, 6, 12])
     embed_dim = getattr(args,"swin_embed_dim",96)
