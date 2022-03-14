@@ -191,7 +191,7 @@ def swin_tiny_patch4_window7(args):
     args.decoder_ffn_embed_dim = getattr(args, "decoder_ffn_embed_dim", 1536)
     args.decoder_attention_heads = getattr(args, "decoder_attention_heads", 12)
     args.swin_arch = getattr(args, "swin_arch", "swin_tiny_patch4_window7")
-    args.max_target_positions = 512
+    args.max_target_positions = 748
     base_transformer(args)
 
     

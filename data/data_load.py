@@ -4,6 +4,7 @@ import glob
 import logging
 import os
 import random
+from webbrowser import BackgroundBrowser
 import cv2
 from cv2 import erode
 from sklearn.preprocessing import binarize
@@ -14,6 +15,7 @@ from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
 import numpy as np
+import glob 
 logger = logging.getLogger(__name__)
 
 
@@ -246,7 +248,7 @@ class ResizePad(object):
             new_im = np.zeros((self.img_size[0],self.img_size[1],3),dtype=np.uint8)+255
             new_im[5:5+height,5:5+width]=im
         else:
-            ratio = random.uniform(0.65,1)*ratio
+            ratio = random.uniform(0.75,1)*ratio
             height = int(old_size[0]*ratio)
             width = int(old_size[1]*ratio)
             im = cv2.resize(image,(width,height),cv2.INTER_AREA)
@@ -260,7 +262,7 @@ class ResizePad(object):
 def FMR(gt_path,mode,bpe_parser=None):
     normFile = "im2latex_formulas.norm.lst"
     with open(os.path.join(gt_path,normFile),"r") as f:
-        latex = list(f)
+        latex = f.read().split("@&#")
     split_file={"train":"im2latex_train_filter.lst","test":"im2latex_test_filter.lst","valid":"im2latex_validation_filter.lst"}
     data = []
     img_id = 0
@@ -290,6 +292,7 @@ class FormularRecognitionDataset(FairseqDataset):
         self.input_size = input_size
         self.resizePad = ResizePad(img_size = input_size,split=split)
         self.data = FMR(gt_path,mode=split)
+        random.shuffle(self.data)
     def __len__(self):
         return len(self.data)
 
@@ -315,15 +318,62 @@ class FormularRecognitionDataset(FairseqDataset):
 
     def collater(self, samples):
         return default_collater(self.target_dict, samples)
+class SynthesizerRealFormular(FairseqDataset):
+    def __init__(self,gt_path,tfm,target_dict,input_size,split,backGroundPath):
+        self.background = glob.glob(os.path.join(backGroundPath,"*.png"))+ glob.glob(os.path.join(backGroundPath,"*.jpg"))
+        self.gt_path = gt_path
+        self.tfm = tfm
+        self.target_dict = target_dict
+        self.input_size = input_size
+        self.resizePad = ResizePad(img_size = input_size,split=split)
+        self.data = FMR(gt_path,mode=split)
+        self.countMergeIndex = 0
+        self.backgroundImage = None
+        random.shuffle(self.data)
+    def __len__(self):
+        return len(self.data)
 
+    def __getitem__(self, index):
+        img_dict = self.data[index]
+        image = cv2.imread(img_dict['img_path'])
+        image = self.mergeBackground(image)
+        image = self.resizePad(image,cut_white_space=False)
+        encoded_str = img_dict['encoded_str']
+        input_ids = self.target_dict.encode_line(encoded_str, add_if_not_exist=False)
+
+        tfm_img = self.tfm(image=image)["image"]  # h, w, c
+        return {'id': index, 'tfm_img': tfm_img, 'label_ids': input_ids}
+    def mergeBackground(self,image):
+        
+        if self.countMergeIndex!=0:
+            backgroundImage = self.backgroundImage 
+        else:
+            imagePath = np.random.choice(self.background)
+            backgroundImage = cv2.imread(imagePath)
+            self.backgroundImage = backgroundImage
+        height,width = image.shape[:2]
+
+        return image
+    def size(self, idx):
+        img_dict = self.data[idx]
+
+        encoded_str = img_dict['encoded_str']
+        input_ids = self.target_dict.encode_line(encoded_str, add_if_not_exist=False)
+        return len(input_ids)
+
+    def num_tokens(self, idx):
+        return self.size(idx)
+
+    def collater(self, samples):
+        return default_collater(self.target_dict, samples)
 
 if __name__=="__main__":
     from fairseq.data import Dictionary
-    from data.data_aug import build_formular_aug
+    from data.data_aug import build_realWorld_aug,build_formular_aug
     import uuid
-    target_dict = Dictionary.load("dictionary/latex_vocab_formulae.txt")
+    target_dict = Dictionary.load("dictionary/vocab_taojuan.txt")
     tfm = build_formular_aug(mode="train")
-    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/formulae",tfm=tfm,target_dict=target_dict,input_size=(224,784),split="train")
+    formular= FormularRecognitionDataset(gt_path="/home/public/yushilin/formular/taojuan",tfm=tfm,target_dict=target_dict,input_size=(224,672),split="train")
     for f in formular:
-        pass
-        #cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])
+        #pass
+        cv2.imwrite("result/{}.jpg".format(uuid.uuid1()),f["tfm_img"])

@@ -11,7 +11,7 @@ from .data.data_load import FormularRecognitionDataset
 
 #try:
 from .data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
-from .data.data_aug import build_data_aug,build_formular_aug
+from .data.data_aug import build_data_aug,build_formular_aug,build_realWorld_aug
 #except:
 #    from data.data_load import SROIETextRecognitionDataset, SyntheticTextRecognitionDataset, FormularRecognitionDataset
 #    from data.data_aug import build_data_aug,build_formular_aug
@@ -51,7 +51,7 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
         #                     help='the output dir for the crop images')   
         parser.add_argument('--data-type', type=str, default='formular',
                             help='the dataset type used for the task (SROIE or Receipt53K)')        
-        parser.add_argument('--dict',type=str,default="dictionary/latex_vocab_formulae.txt")
+        parser.add_argument('--dict',type=str,default="dictionary/vocab_taojuan.txt")
         # Augmentation parameters
         parser.add_argument('--color-jitter', type=float, default=0.4, metavar='PCT',
                             help='Color jitter factor (default: 0.4)')
@@ -146,7 +146,8 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
         if self.args.preprocess == 'DA2':            
             tfm = build_data_aug(input_size, mode=split,resizepad=True)            
         elif self.args.preprocess == "FM":
-            tfm = build_formular_aug(mode=split) 
+            #tfm = build_formular_aug(mode=split) 
+            tfm = build_formular_aug(mode = split)
         else:
             raise Exception('Undeined image preprocess method. DA2 or FM')
 
