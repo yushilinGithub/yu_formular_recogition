@@ -262,7 +262,7 @@ class ResizePad(object):
 def FMR(gt_path,mode,bpe_parser=None):
     normFile = "im2latex_formulas.norm.lst"
     with open(os.path.join(gt_path,normFile),"r") as f:
-        latex = f.read().split("@&#")
+        latex = f.read().split(" ")
     split_file={"train":"im2latex_train_filter.lst","test":"im2latex_test_filter.lst","valid":"im2latex_validation_filter.lst"}
     data = []
     img_id = 0
