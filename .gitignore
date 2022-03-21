@@ -11,3 +11,5 @@ run_formular.sh
 eval.sh
 *.csv
 *.pt
+*vocab_taojuan.txt
+*latex_vocab_formulae.txt

@@ -1,157 +1,23 @@
-# OKayOCR
+# OKayOCR  image->Latex
 
 ## Introduction
-original repositary is located at https://github.com/microsoft/unilm/tree/master/trocr, we make a little modification, add image relative positional encoding and several encoder methods, we are working at add swin transformer and T2T-VIT as encoder, and later on, we gone add synthesizer attention to this module, and use clip pretrained model to train this image captioning kind project, and used to train im2latex-100k dataset, we changed the image input size and data augmentation from original one, this make the project big progress.
+Extend Trocr (https://github.com/microsoft/unilm/tree/master/trocr) for formular recognization, convert image to Latex code, I have tried original model using Vit or beit as encoder, and unilm as decoder, I found it doesn't deal well with charactor size variation,  then I add irpe(image relative position encoding) (https://arxiv.org/abs/2107.14222) to beit. finally I think Swin Transformer may  can fit this project well, So I changed encoder to Swin Transformer, It bring me very good result, bleu4 to 88.93. I guess if I have more time to train im2latex-100k dataset, I can get start-of-art result, I need to use our data to get there, get start-of-art result isn't our purpose. you can use this project to train ocr as well.
 
- you can use pretrained moded from trocr, thanks for the original one.
- [TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models](https://arxiv.org/abs/2109.10282), Minghao Li, Tengchao Lv, Lei Cui, Yijuan Lu, Dinei Florencio, Cha Zhang, Zhoujun Li, Furu Wei, Preprint 2021.
-
-The TrOCR is currently implemented with the fairseq library. We hope to convert the models to the Huggingface format later.
-
- 
-| Model                          |  #Param   | Test set | Score          |
-|--------------------------------|-----------|----------|----------------|
-| TrOCR-Small                    | 62M        | IAM     | 4.22 (Cased CER)     |
-| TrOCR-Base                     | 334M       | IAM     | 3.42 (Cased CER)     |
-| TrOCR-Large                    | 558M       | IAM     | 2.89 (Cased CER)     |
-| TrOCR-Small                    | 62M        | SROIE   | 95.86 (F1)  |
-| TrOCR-Base                     | 334M       | SROIE   | 96.34 (F1)  |
-| TrOCR-Large                    | 558M       | SROIE   | 96.60 (F1)  |
-
-## Installation
-~~~bash
-conda create -n trocr python=3.7
-conda activate trocr
-git clone https://github.com/microsoft/unilm.git
-cd unilm
-cd trocr
-pip install pybind11
-pip install -r requirements.txt
-pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" 'git+https://github.com/NVIDIA/apex.git'
-~~~
-
-## Fine-tuning and evaluation
-|   Model  | Download |
-| -------- | -------- |
-| TrOCR-Small-IAM    | [trocr-small-handwritten.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-small-handwritten.pt) |
-| TrOCR-Base-IAM     | [trocr-base-handwritten.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-base-handwritten.pt) |
-| TrOCR-Large-IAM    | [trocr-large-handwritten.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-large-handwritten.pt) |
-| TrOCR-Small-SROIE  | [trocr-small-printed.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-small-printed.pt) |
-| TrOCR-Base-SROIE   | [trocr-base-printed.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-base-printed.pt) |
-| TrOCR-Large-SROIE  | [trocr-large-printed.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-large-printed.pt) |
-| TrOCR-Small-Stage1 | [trocr-small-stage1.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-small-stage1.pt) |
-| TrOCR-Base-Stage1  | [trocr-base-stage1.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-base-stage1.pt) |
-| TrOCR-Large-Stage1 | [trocr-large-stage1.pt](https://layoutlm.blob.core.windows.net/trocr/model_zoo/fairseq/trocr-large-stage1.pt) |
-
-|   Test set  | Download |
-| --------| -------- |
-| IAM     | [IAM.tar.gz](https://layoutlm.blob.core.windows.net/trocr/dataset/IAM.tar.gz) |
-| SROIE   | [SROIE_Task2_Original.tar.gz](https://layoutlm.blob.core.windows.net/trocr/dataset/SROIE_Task2_Original.tar.gz) |
-
-
-
-### Fine-tuning on IAM
-~~~bash
-export MODEL_NAME=ft_iam
-export SAVE_PATH=/path/to/save/${MODEL_NAME}
-export LOG_DIR=log_${MODEL_NAME}
-export DATA=/path/to/data
-mkdir ${LOG_DIR}
-export BSZ=8
-export valid_BSZ=16
-
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch --nproc_per_node=8 \
-    $(which fairseq-train) \
-    --data-type STR --user-dir ./ --task text_recognition \
-    --arch trocr_large \   # or trocr_base
-    --seed 1111 --optimizer adam --lr 2e-05 --lr-scheduler inverse_sqrt \
-    --warmup-init-lr 1e-8 --warmup-updates 500 --weight-decay 0.0001 --log-format tqdm \
-    --log-interval 10 --batch-size ${BSZ} --batch-size-valid ${valid_BSZ} --save-dir ${SAVE_PATH} \
-    --tensorboard-logdir ${LOG_DIR} --max-epoch 300 --patience 20 --ddp-backend legacy_ddp \
-    --num-workers 8 --preprocess DA2 --update-freq 1 \
-    --bpe gpt2 --decoder-pretrained roberta \ # --bpe sentencepiece --sentencepiece-model ./unilm3-cased.model --decoder-pretrained unilm ## For small models
-    --finetune-from-model /path/to/model --fp16 \
-    ${DATA} 
-~~~
-
-### Evaluation on IAM
-~~~bash
-export DATA=/path/to/data
-export MODEL=/path/to/model
-export RESULT_PATH=/path/to/result
-export BSZ=16
-
-$(which fairseq-generate) \
-        --data-type STR --user-dir ./ --task text_recognition --input-size 384 \
-        --beam 10 --scoring cer2 --gen-subset test --batch-size ${BSZ} \
-        --path ${MODEL} --results-path ${RESULT_PATH} --preprocess DA2 \
-        --bpe gpt2 --dict-path-or-url https://layoutlm.blob.core.windows.net/trocr/dictionaries/gpt2_with_mask.dict.txt \ # --bpe sentencepiece --sentencepiece-model ./unilm3-cased.model --dict-path-or-url https://layoutlm.blob.core.windows.net/trocr/dictionaries/unilm3.dict.txt ## For small models
-        --fp16 \
-        ${DATA}
-~~~
-
-### Fine-tuning on SROIE
-~~~bash
-export MODEL_NAME=ft_SROIE
-export SAVE_PATH=/path/to/save/${MODEL_NAME}
-export LOG_DIR=log_${MODEL_NAME}
-export DATA=/path/to/data
-mkdir ${LOG_DIR}
-export BSZ=16
-export valid_BSZ=16
-
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch --nproc_per_node=8 \
-    $(which fairseq-train) \
-    --data-type SROIE --user-dir ./ --task text_recognition \
-    --arch trocr_large \   # or trocr_base
-    --seed 1111 --optimizer adam --lr 5e-05 --lr-scheduler inverse_sqrt \
-    --warmup-init-lr 1e-8 --warmup-updates 800 --weight-decay 0.0001 --log-format tqdm \
-    --log-interval 10 --batch-size ${BSZ} --batch-size-valid ${valid_BSZ} \
-    --save-dir ${SAVE_PATH} --tensorboard-logdir ${LOG_DIR} --max-epoch 300 \
-    --patience 10 --ddp-backend legacy_ddp --num-workers 10 --preprocess DA2 \
-    --bpe gpt2 --decoder-pretrained roberta \ # --bpe sentencepiece --sentencepiece-model ./unilm3-cased.model --decoder-pretrained unilm ## For small models
-    --update-freq 16 --finetune-from-model /path/to/model --fp16 \
-    ${DATA}
-~~~
-
-### Evaluation on SROIE
-~~~bash
-export DATA=/path/to/data
-export MODEL=/path/to/model
-export RESULT_PATH=/path/to/result
-export BSZ=16
-$(which fairseq-generate) \
-        --data-type SROIE --user-dir ./ --task text_recognition --input-size 384 \
-        --beam 10 --nbest 1 --scoring sroie --gen-subset test \
-        --batch-size ${BSZ} --path ${MODEL} --results-path ${RESULT_PATH} \
-        --bpe gpt2 --dict-path-or-url https://layoutlm.blob.core.windows.net/trocr/dictionaries/gpt2_with_mask.dict.txt \ # --bpe sentencepiece --sentencepiece-model ./unilm3-cased.model --dict-path-or-url https://layoutlm.blob.core.windows.net/trocr/dictionaries/unilm3.dict.txt ## For small models
-        --preprocess DA2 \
-        --fp16 \
-        ${DATA}
-~~~
-
-Please convert the output file to zip format using "convert_to_sroie_format.py" and submit it on the [website](https://rrc.cvc.uab.es/?ch=13&com=evaluation&task=2) to get the  score.
-
-## An Inference Example
-Please see detials in [pic_inference.py](https://github.com/microsoft/unilm/blob/master/trocr/pic_inference.py).
-
-## Citation
-If you want to cite TrOCR in your research, please cite the following paper:
-``` latex
-@misc{li2021trocr,
-      title={TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models}, 
-      author={Minghao Li and Tengchao Lv and Lei Cui and Yijuan Lu and Dinei Florencio and Cha Zhang and Zhoujun Li and Furu Wei},
-      year={2021},
-      eprint={2109.10282},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-}
+# download im2latex-100k dataset.
 ```
-
-## License
-This project is licensed under the license found in the LICENSE file in the root directory of this source tree. Portions of the source code are based on the [fairseq](https://github.com/pytorch/fairseq) project. [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct)
-
-### Contact Information
-For help or issues using TrOCR, please submit a GitHub issue.
-
-For other communications related to TrOCR, please contact Lei Cui (`lecu@microsoft.com`), Furu Wei (`fuwei@microsoft.com`).
+cd data
+wget http://lstm.seas.harvard.edu/latex/data/im2latex_validate_filter.lst
+wget http://lstm.seas.harvard.edu/latex/data/im2latex_train_filter.lst
+wget http://lstm.seas.harvard.edu/latex/data/im2latex_test_filter.lst
+wget http://lstm.seas.harvard.edu/latex/data/formula_images_processed.tar.gz
+wget http://lstm.seas.harvard.edu/latex/data/im2latex_formulas.norm.lst
+tar -zxvf formula_images_processed.tar.gz
+```
+# down load pretrained model 
+  the model is located at  https://github.com/microsoft/Swin-Transformer, by far I trained tiny-model as encoder, and In my experimence, I found that pretrained decoder  model seem like didn't facilatite the result.
+# dependance
+  pip install -r requirement.txt
+# run the code
+    bash run_formular.sh
+# eval
+    bash eval.sh

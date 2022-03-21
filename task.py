@@ -1,6 +1,10 @@
 from email.policy import default
 import os
+from tkinter.tix import Tree
 from typing import Dict
+
+from aiohttp import request
+from numpy import require
 from fairseq import search
 
 from fairseq.data import Dictionary, encoders
@@ -25,7 +29,7 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
     
     @staticmethod
     def add_args(parser):
-        parser.add_argument('--data', default="/home/public/yushilin/formular/harvard/",type=str,# metavar='DIR',
+        parser.add_argument('--data',type=str, metavar='DIR',require = True,
                             help='the path to the data dir')                
         # parser.add_argument('--max-tgt-len', default=64, type=int,
         #                     help='the max bpe num of the output')
@@ -86,7 +90,7 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
 
         elif getattr(args, "decoder_pretrained", None) is not None:
             if args.decoder_pretrained == 'unilm':            
-                url = 'https://layoutlm.blob.core.windows.net/trocr/dictionaries/unilm3.dict.txt'
+                url = './dictionary/unilm3.dict.txt'
                 logger.info('Load unilm dictionary from {}'.format(url))            
                 dict_content = urllib.request.urlopen(url).read().decode()
                 dict_file_like = io.StringIO(dict_content)
@@ -96,7 +100,7 @@ class SROIETextRecognitionTask(LegacyFairseqTask):
                 # logger.info('Load gpt2 dictionary from {}'.format(url))            
                 # dict_content = urllib.request.urlopen(url).read().decode()
                 # dict_file_like = io.StringIO(dict_content)
-                dict_file_like = "/home/yushilin/workspace/ocr/unilm/trocr/dictionary/gpt2_with_mask.dict.txt"
+                dict_file_like = "./dictionary/gpt2_with_mask.dict.txt"
                 target_dict = Dictionary.load(dict_file_like)
             else:
                 raise ValueError('Unknown decoder_pretrained: {}'.format(args.decoder_pretrained))
