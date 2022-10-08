@@ -1,0 +1,1 @@
+python okayDataProcess/scripts/preprocessing/generate_latex_vocab.py --data-path /home/public/yushilin/formular/image2latex/im2latex_formulas.lst --output-file dictionary/im2latex_formulas.txt

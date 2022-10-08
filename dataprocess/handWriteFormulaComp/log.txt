@@ -1,0 +1,10 @@
+2022-08-30 20:20:18,697 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:20:45,405 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:21:25,278 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:21:46,737 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:21:47,586 root  INFO     #UNK's: 37
+2022-08-30 20:21:47,594 root  INFO     Jobs finished
+2022-08-30 20:24:07,496 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:26:21,378 root  INFO     Script being executed: generate_vocab.py
+2022-08-30 20:26:22,099 root  INFO     #UNK's: 37
+2022-08-30 20:26:22,104 root  INFO     Jobs finished
