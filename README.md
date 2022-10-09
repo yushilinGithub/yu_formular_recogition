@@ -58,7 +58,7 @@ python scripts/preprocessing/preprocess_images.py --input-dir data/sample/images
 ```
 The above command will crop the formula area, and group images of similar sizes to facilitate batching.
 
-Next, the LaTeX formulas need to be tokenized or normalized. Thw code is tested for python2
+Next, the LaTeX formulas need to be tokenized or normalized. The code is tested for python2
 
 
 ```
