@@ -3,21 +3,13 @@ from pathlib import Path
 def process_args(args):
     parser = argparse.ArgumentParser(description='Generate vocabulary file.')
 
-<<<<<<< HEAD
     parser.add_argument('--data-path', dest='data_path',required=True,
                         type=str,
                         help=('Input file containing a tokenized formula per line.'
                         ))
     parser.add_argument('--output-file', dest='output_file',required=True,
                         type=str,
-=======
-    parser.add_argument('--data-path', dest='data_path',
-                        type=str, default="/home/public/yushilin/handwrite/HandWriteFormula/",
-                        help=('Input file containing a tokenized formula per line.'
-                        ))
-    parser.add_argument('--output-file', dest='output_file',
-                        type=str, default="/home/yushilin/workspace/ocr/okayOCR/dictionary/handWriteFormulaComp.txt",
->>>>>>> e76a5cdab7bcf49c11128972565dac8dc95c5716
+
                         help=('Output file for putting vocabulary.'
                         ))
     parser.add_argument('--unk-threshold', dest='unk_threshold',
